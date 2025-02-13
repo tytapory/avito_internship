@@ -98,9 +98,11 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION get_user_balance(user_id_param INT)
     RETURNS INT AS $$
+DECLARE
+    result INT;
 BEGIN
-    RETURN QUERY
-        SELECT users.balance FROM users WHERE users.id = user_id_param;
+    SELECT users.balance INTO result FROM users WHERE users.id = user_id_param;
+    RETURN result;
 END;
 $$ LANGUAGE plpgsql;
 

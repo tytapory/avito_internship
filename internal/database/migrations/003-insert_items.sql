@@ -1,4 +1,4 @@
-INSERT INTO items (item_name, price) VALUES
+INSERT INTO items (name, price) VALUES
 ('t_shirt', 80),
 ('cup', 20),
 ('book', 50),
