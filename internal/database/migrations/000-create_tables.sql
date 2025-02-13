@@ -1,13 +1,13 @@
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
-    username VARCHAR(255) NOT NULL UNIQUE,
+    username VARCHAR(32) NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
     balance INT DEFAULT 1000 CHECK (balance >= 0)
 );
 
 CREATE TABLE items (
     id SERIAL PRIMARY KEY,
-    item_name VARCHAR(255) NOT NULL,
+    name VARCHAR(32) NOT NULL,
     price INT NOT NULL CHECK (price >= 0)
 );
 
