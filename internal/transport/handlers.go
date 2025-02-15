@@ -1,7 +1,9 @@
 package transport
 
 import (
+	"avito_internship/internal/auth"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -13,18 +15,18 @@ import (
 // Если данные запроса некорректны или не могут быть разобраны, возвращает ошибку 400 (Bad Request).
 // Если аутентификация не удалась (неверные учетные данные), возвращает ошибку 401 (Unauthorized).
 // В случае успешной аутентификации возвращает токен в формате JSON и статус 200 (OK).
-func Authentication(w http.ResponseWriter, r *http.Request, authenticator Authenticator) {
+func Authentication(w http.ResponseWriter, r *http.Request, authFunc func(string, string) (string, error)) {
 	if r.Method != http.MethodPost {
 		invalidRequestMethodResponse(w, r)
 		return
 	}
 
 	body, err := io.ReadAll(r.Body)
+	defer r.Body.Close()
 	if err != nil {
 		badRequestResponse(w)
 		return
 	}
-	defer r.Body.Close()
 
 	var credentials AuthRequest
 	err = json.Unmarshal(body, &credentials)
@@ -33,9 +35,9 @@ func Authentication(w http.ResponseWriter, r *http.Request, authenticator Authen
 		return
 	}
 
-	token, err := authenticator.Authenticate(credentials)
+	token, err := authFunc(credentials.Username, credentials.Password)
 	if err != nil {
-		if err == auth.ErrInvalidCredentials {
+		if errors.Is(err, auth.ErrInvalidCredentials) || errors.Is(err, auth.ErrExpiredToken) {
 			unauthorizedResponse(w)
 		} else {
 			internalServerErrorResponse(w)
@@ -44,11 +46,6 @@ func Authentication(w http.ResponseWriter, r *http.Request, authenticator Authen
 	}
 
 	tokenResponse(w, token)
-}
-
-// Authenticator - интерфейс для аутентификации
-type Authenticator interface {
-	Authenticate(credentials AuthRequest) (string, error)
 }
 
 // invalidRequestMethodResponse генерирует сообщение об ошибке неверного типа запроса.
@@ -83,7 +80,7 @@ func unauthorizedResponse(w http.ResponseWriter) {
 	json.NewEncoder(w).Encode(ErrorResponse{Errors: "Неавторизован."})
 }
 
-// unauthorizedResponse генерирует ответ о внутренней ошибке сервера.
+// internalServerErrorResponse генерирует ответ о внутренней ошибке сервера.
 // Отправляет статус 500 (Internal Server Error) с общей ошибкой в формате JSON.
 func internalServerErrorResponse(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")

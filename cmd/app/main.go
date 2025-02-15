@@ -1,7 +1,9 @@
 package main
 
-import "avito_internship/internal/transport"
+import (
+	"avito_internship/internal/app"
+)
 
 func main() {
-	transport.Run()
+	app.Run()
 }
