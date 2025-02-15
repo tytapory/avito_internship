@@ -1,15 +1,22 @@
-CREATE OR REPLACE FUNCTION transfer_coins(sender_id_param INT, receiver_id_param INT, transfer_amount_param INT)
+CREATE OR REPLACE FUNCTION transfer_coins(sender_id_param INT, receiver_param VARCHAR(32), transfer_amount_param INT)
     RETURNS VOID AS $$
 DECLARE
     sender_balance INT;
     receiver_balance INT;
+    receiver_id_param INT;
 BEGIN
-    IF NOT EXISTS (SELECT 1 FROM users WHERE id = receiver_id_param) THEN
-        RAISE EXCEPTION 'Получатель не существует: %', receiver_id_param;
+    IF NOT EXISTS (SELECT 1 FROM users WHERE username = receiver_param) THEN
+        RAISE EXCEPTION 'Получатель не существует: %', receiver_param;
     END IF;
 
     IF transfer_amount_param <= 0 THEN
         RAISE EXCEPTION 'Сумма перевода должна быть > 0';
+    END IF;
+
+    SELECT id INTO receiver_id_param FROM users WHERE username = receiver_param;
+
+    IF receiver_id_param = sender_id_param THEN
+        RAISE EXCEPTION 'Нельзя переводить средства самому себе';
     END IF;
 
     SELECT balance INTO sender_balance FROM users WHERE users.id = sender_id_param FOR UPDATE;
@@ -18,7 +25,7 @@ BEGIN
         RAISE EXCEPTION 'Недостаточно средств на балансе отправителя';
     END IF;
 
-    SELECT balance INTO receiver_balance FROM users WHERE users.id = receiver_id_param FOR UPDATE;
+    SELECT balance INTO receiver_balance FROM users WHERE users.username = receiver_param FOR UPDATE;
 
     UPDATE users
     SET balance = balance - transfer_amount_param
@@ -26,23 +33,24 @@ BEGIN
 
     UPDATE users
     SET balance = balance + transfer_amount_param
-    WHERE id = receiver_id_param;
+    WHERE username = receiver_param;
 
     INSERT INTO transactions (sender_id, receiver_id, amount)
     VALUES (sender_id_param, receiver_id_param, transfer_amount_param);
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION buy_item(user_id_param INT, item_id_param INT, item_amount_param INT)
+CREATE OR REPLACE FUNCTION buy_item(user_id_param INT, item_name_param VARCHAR(32), item_amount_param INT)
     RETURNS VOID AS $$
 DECLARE
     user_balance INT;
     item_price INT;
     item_exists BOOLEAN;
+    item_id_param INT;
 BEGIN
-    SELECT EXISTS (SELECT 1 FROM items WHERE id = item_id_param) INTO item_exists;
+    SELECT EXISTS (SELECT 1 FROM items WHERE name = item_name_param) INTO item_exists;
     IF NOT item_exists THEN
-        RAISE EXCEPTION 'Предмет не существует: %', item_id_param;
+        RAISE EXCEPTION 'Предмет не существует: %', item_name_param;
     END IF;
 
     IF item_amount_param <= 0 THEN
@@ -51,7 +59,9 @@ BEGIN
 
     SELECT balance INTO user_balance FROM users WHERE users.id = user_id_param FOR UPDATE;
 
-    SELECT price INTO item_price FROM items WHERE id = item_id_param;
+    SELECT items.id INTO item_id_param FROM items WHERE name = item_name_param;
+
+    SELECT price INTO item_price FROM items WHERE items.id = item_id_param;
 
     IF user_balance < item_amount_param * item_price THEN
         RAISE EXCEPTION 'Недостаточно средств на балансе пользователя';
