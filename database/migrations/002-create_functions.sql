@@ -71,28 +71,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION register_or_verify_user(username_param VARCHAR(32), password_hash_param TEXT)
+CREATE OR REPLACE FUNCTION get_user_id_password_hash(username_param VARCHAR(32))
+    RETURNS TABLE(id INT, password_hash CHAR(60)) AS $$
+BEGIN
+    RETURN QUERY
+        SELECT users.id, users.password_hash
+        FROM users
+        WHERE users.username = username_param;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION register_user(username_param VARCHAR(32), password_hash_param CHAR(60))
     RETURNS INT AS $$
 DECLARE
-    existing_user_password TEXT;
-    user_id INT;
+    user_id_param INT;
 BEGIN
-    SELECT id, password_hash INTO user_id, existing_user_password
-    FROM users
-    WHERE username = username_param;
-
-    IF FOUND THEN
-        IF existing_user_password = password_hash_param THEN
-            RETURN user_id;
-        ELSE
-            RAISE EXCEPTION 'Пароль неверен для пользователя: %', username_param;
-        END IF;
-    ELSE
-        INSERT INTO users (username, password_hash)
-        VALUES (username_param, password_hash_param)
-        RETURNING id INTO user_id;
-        RETURN user_id;
-    END IF;
+    INSERT INTO users (username, password_hash)
+    VALUES (username_param, password_hash_param)
+    RETURNING id INTO user_id_param;
+    RETURN user_id_param;
 END;
 $$ LANGUAGE plpgsql;
 
