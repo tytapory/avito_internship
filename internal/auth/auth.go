@@ -21,7 +21,7 @@ func Authenticate(username, password string) (string, error) {
 		return "", ErrInvalidCredentials
 	}
 	providedPassHash := getHash(password)
-	userID, passHash, err := repository.GetUserDataOrRegister(username, string(providedPassHash))
+	userID, passHash, err := repository.GetUserIDPassHashOrRegister(username, string(providedPassHash))
 	if err != nil {
 		return "", err
 	}

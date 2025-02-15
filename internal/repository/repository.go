@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"avito_internship/internal/models"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -27,9 +28,21 @@ func Connect() {
 	log.Println("Успешное подключение к базе данных")
 }
 
-// GetUserDataOrRegister с помощью sql функций ищет айди и хэш пароля пользователя
+// BuyItemsForUser осуществляет покупку определенного количества вещей
+func BuyItemsForUser(userID int, itemName string, amount int) error {
+	_, err := db.Query("SELECT buy_item($1, $2, $3);", userID, itemName, amount)
+	return err
+}
+
+// SendCoins осуществляет перевод коинов от одного пользователя к другому
+func SendCoins(userFromID, amount int, userTo string) error {
+	_, err := db.Query("SELECT transfer_coins($1, $2, $3);", userFromID, userTo, amount)
+	return err
+}
+
+// GetUserIDPassHashOrRegister с помощью sql функций ищет айди и хэш пароля пользователя
 // Если пользователь не существует - создает его и возвращает его айди и переданный в функцию хэш.
-func GetUserDataOrRegister(username string, providedPassHash string) (int, []byte, error) {
+func GetUserIDPassHashOrRegister(username string, providedPassHash string) (int, []byte, error) {
 	tx, err := db.Begin()
 	defer func() {
 		if err != nil {
@@ -61,4 +74,82 @@ func GetUserDataOrRegister(username string, providedPassHash string) (int, []byt
 		return 0, nil, err
 	}
 	return userId, []byte(userPassHash), nil
+}
+
+// GetUserBalanceInventoryLogs с помощью sql функций получает баланс пользователя, инвентари и последние транзакции
+func GetUserBalanceInventoryLogs(userID int) (models.InfoResponse, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return models.InfoResponse{}, err
+	}
+
+	defer func() {
+		if err != nil {
+			tx.Rollback()
+		}
+	}()
+
+	var result models.InfoResponse
+
+	err = tx.QueryRow("SELECT get_user_balance($1);", userID).Scan(&result.Coins)
+	if err != nil {
+		return models.InfoResponse{}, err
+	}
+
+	rows, err := tx.Query("SELECT * FROM get_user_inventory($1);", userID)
+	if err != nil {
+		return models.InfoResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item models.Item
+		if err := rows.Scan(&item.Type, &item.Quantity); err != nil {
+			return models.InfoResponse{}, err
+		}
+		result.Inventory = append(result.Inventory, item)
+	}
+	if err = rows.Err(); err != nil {
+		return models.InfoResponse{}, err
+	}
+
+	rows, err = tx.Query("SELECT * FROM get_user_receive_history($1);", userID)
+	if err != nil {
+		return models.InfoResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var received models.CoinTransaction
+		if err := rows.Scan(&received.User, &received.Amount); err != nil {
+			return models.InfoResponse{}, err
+		}
+		result.CoinHistory.Received = append(result.CoinHistory.Received, received)
+	}
+	if err = rows.Err(); err != nil {
+		return models.InfoResponse{}, err
+	}
+
+	rows, err = tx.Query("SELECT * FROM get_user_send_history($1);", userID)
+	if err != nil {
+		return models.InfoResponse{}, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var sent models.CoinTransaction
+		if err := rows.Scan(&sent.User, &sent.Amount); err != nil {
+			return models.InfoResponse{}, err
+		}
+		result.CoinHistory.Sent = append(result.CoinHistory.Sent, sent)
+	}
+	if err = rows.Err(); err != nil {
+		return models.InfoResponse{}, err
+	}
+
+	if err = tx.Commit(); err != nil {
+		return models.InfoResponse{}, err
+	}
+
+	return result, nil
 }

@@ -7,5 +7,5 @@ import (
 
 func Run() {
 	MapRoutes()
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(":8080", Authenticate(http.DefaultServeMux)))
 }
