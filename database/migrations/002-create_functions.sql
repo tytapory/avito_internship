@@ -19,13 +19,17 @@ BEGIN
         RAISE EXCEPTION 'Нельзя переводить средства самому себе';
     END IF;
 
-    SELECT balance INTO sender_balance FROM users WHERE users.id = sender_id_param FOR UPDATE;
+    IF sender_id_param < receiver_id_param THEN
+        SELECT balance INTO sender_balance FROM users WHERE id = sender_id_param FOR UPDATE;
+        SELECT balance INTO receiver_balance FROM users WHERE id = receiver_id_param FOR UPDATE;
+    ELSE
+        SELECT balance INTO receiver_balance FROM users WHERE id = receiver_id_param FOR UPDATE;
+        SELECT balance INTO sender_balance FROM users WHERE id = sender_id_param FOR UPDATE;
+    END IF;
 
     IF sender_balance < transfer_amount_param THEN
         RAISE EXCEPTION 'Недостаточно средств на балансе отправителя';
     END IF;
-
-    SELECT balance INTO receiver_balance FROM users WHERE users.username = receiver_param FOR UPDATE;
 
     UPDATE users
     SET balance = balance - transfer_amount_param
@@ -33,7 +37,7 @@ BEGIN
 
     UPDATE users
     SET balance = balance + transfer_amount_param
-    WHERE username = receiver_param;
+    WHERE id = receiver_id_param;
 
     INSERT INTO transactions (sender_id, receiver_id, amount)
     VALUES (sender_id_param, receiver_id_param, transfer_amount_param);
