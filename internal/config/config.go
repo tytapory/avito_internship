@@ -28,13 +28,13 @@ type Config struct {
 func Get() *Config {
 	once.Do(func() {
 		cfg = &Config{
-			ServerPort:   getEnv("SERVER_PORT", "8080"),
-			DatabasePort: getEnv("DATABASE_PORT", "5432"),
-			DatabaseUser: getEnv("DATABASE_USER", "postgres"),
-			DatabasePass: getEnv("DATABASE_PASSWORD", "password"),
-			DatabaseName: getEnv("DATABASE_NAME", "mydb"),
-			DatabaseHost: getEnv("DATABASE_HOST", "localhost"),
-			JWTSecret:    []byte(getEnv("JWT_SECRET", generateJWTSecret())),
+			ServerPort:   getEnv("SERVER_PORT", "8080", os.LookupEnv),
+			DatabasePort: getEnv("DATABASE_PORT", "5432", os.LookupEnv),
+			DatabaseUser: getEnv("DATABASE_USER", "postgres", os.LookupEnv),
+			DatabasePass: getEnv("DATABASE_PASSWORD", "password", os.LookupEnv),
+			DatabaseName: getEnv("DATABASE_NAME", "mydb", os.LookupEnv),
+			DatabaseHost: getEnv("DATABASE_HOST", "localhost", os.LookupEnv),
+			JWTSecret:    []byte(getEnv("JWT_SECRET", generateJWTSecret(), os.LookupEnv)),
 		}
 	})
 	return cfg
@@ -42,8 +42,8 @@ func Get() *Config {
 
 // getEnv получает значение переменной окружения по ключу.
 // Если переменная не задана, возвращает значение по умолчанию.
-func getEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
+func getEnv(key, fallback string, getEnvFunc func(string) (string, bool)) string {
+	if value, ok := getEnvFunc(key); ok {
 		return value
 	}
 	return fallback
@@ -54,4 +54,9 @@ func generateJWTSecret() string {
 	secret := make([]byte, 32)
 	rand.Read(secret)
 	return base64.StdEncoding.EncodeToString(secret)
+}
+
+// SetJWTSecret позволяет устанавливать известный секрет для тестирования
+func (c *Config) SetJWTSecret(secret []byte) {
+	c.JWTSecret = secret
 }

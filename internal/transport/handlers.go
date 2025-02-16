@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"net/http"
 	"strings"
@@ -14,7 +15,7 @@ import (
 
 // Authenticate это middleware который отвечает за проверку предоставленного jwt токена.
 // Он парсит токен и если он валидный то передает найденный в нем айди пользователя в handler
-func Authenticate(next http.Handler) http.Handler {
+func Authenticate(next http.Handler, verificationFunc func(string) (int, error)) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/auth" {
 			authHeader := r.Header.Get("Authorization")
@@ -23,7 +24,7 @@ func Authenticate(next http.Handler) http.Handler {
 				return
 			}
 			tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-			userID, err := auth.VerifyJWT(tokenString)
+			userID, err := verificationFunc(tokenString)
 			if err != nil {
 				unauthorizedResponse(w)
 				return
@@ -43,7 +44,7 @@ func Authenticate(next http.Handler) http.Handler {
 // Если во время покупки произошла ошибка, возвращает ошибку 500 (Internal Server Error).
 func BuyItems(w http.ResponseWriter, r *http.Request, buyFunc func(int, string, int) error) {
 	if r.Method != "GET" {
-		badRequestResponse(w)
+		invalidRequestMethodResponse(w, r)
 		return
 	}
 	path := r.URL.Path
@@ -119,7 +120,7 @@ func GetJWT(w http.ResponseWriter, r *http.Request, authFunc func(string, string
 
 	token, err := authFunc(credentials.Username, credentials.Password)
 	if err != nil {
-		if errors.Is(err, auth.ErrInvalidCredentials) || errors.Is(err, auth.ErrExpiredToken) {
+		if errors.Is(err, auth.ErrInvalidCredentials) || errors.Is(err, jwt.ErrTokenExpired) {
 			unauthorizedResponse(w)
 		} else {
 			internalServerErrorResponse(w)

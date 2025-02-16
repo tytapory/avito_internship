@@ -1,11 +1,13 @@
 package transport
 
 import (
+	"avito_internship/internal/auth"
 	"log"
 	"net/http"
 )
 
 func Run() {
 	MapRoutes()
-	log.Fatal(http.ListenAndServe(":8080", Authenticate(http.DefaultServeMux)))
+	authMiddleware := Authenticate(http.DefaultServeMux, auth.VerifyJWT)
+	log.Fatal(http.ListenAndServe(":8080", authMiddleware))
 }

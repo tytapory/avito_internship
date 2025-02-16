@@ -2,7 +2,6 @@ package auth
 
 import (
 	"avito_internship/internal/config"
-	"avito_internship/internal/repository"
 	"errors"
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
@@ -11,17 +10,16 @@ import (
 )
 
 var ErrInvalidCredentials = errors.New("invalid credentials")
-var ErrExpiredToken = errors.New("expired token")
 
 // Authenticate выполняет вход или регистрирует пользователя.
 // Если пользователь найден, проверяет пароль и возвращает JWT если пароль верен.
 // Если пользователя нет, регистрирует его и выдает JWT.
-func Authenticate(username, password string) (string, error) {
+func Authenticate(username, password string, GetUserFromDB func(string, string) (int, []byte, error)) (string, error) {
 	if username == "" || password == "" || len(username) >= 32 {
 		return "", ErrInvalidCredentials
 	}
 	providedPassHash := getHash(password)
-	userID, passHash, err := repository.GetUserIDPassHashOrRegister(username, string(providedPassHash))
+	userID, passHash, err := GetUserFromDB(username, string(providedPassHash))
 	if err != nil {
 		return "", err
 	}
@@ -47,15 +45,6 @@ func VerifyJWT(tokenString string) (int, error) {
 	claims, ok := token.Claims.(jwt.MapClaims)
 	if !ok || !token.Valid {
 		return 0, ErrInvalidCredentials
-	}
-
-	expFloat, ok := claims["exp"].(float64)
-	if !ok {
-		return 0, ErrExpiredToken
-	}
-	expiration := int64(expFloat)
-	if time.Now().Unix() > expiration {
-		return 0, ErrExpiredToken
 	}
 
 	userIDFloat, ok := claims["user_id"].(float64)

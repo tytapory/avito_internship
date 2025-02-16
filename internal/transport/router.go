@@ -8,7 +8,9 @@ import (
 
 func MapRoutes() {
 	http.HandleFunc("/api/auth", func(w http.ResponseWriter, r *http.Request) {
-		GetJWT(w, r, auth.Authenticate)
+		GetJWT(w, r, func(username, password string) (string, error) {
+			return auth.Authenticate(username, password, repository.GetUserIDPassHashOrRegister)
+		})
 	})
 	http.HandleFunc("/api/info", func(w http.ResponseWriter, r *http.Request) {
 		GetUserInfo(w, r, repository.GetUserBalanceInventoryLogs)
