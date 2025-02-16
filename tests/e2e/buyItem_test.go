@@ -15,7 +15,7 @@ func TestPurchaseAndInventory(t *testing.T) {
 	baseURL := "http://avito-shop-service-test:8080"
 	authURL := baseURL + "/api/auth"
 	infoURL := baseURL + "/api/info"
-	purchaseURL := baseURL + "/api/buy/t_shirt"
+	purchaseURL := baseURL + "/api/buy/t-shirt"
 
 	regPayload := models.AuthRequest{
 		Username: "testUserForPurchase",
@@ -70,7 +70,7 @@ func TestPurchaseAndInventory(t *testing.T) {
 
 	var found bool
 	for _, item := range infoResponse.Inventory {
-		if item.Type == "t_shirt" {
+		if item.Type == "t-shirt" {
 			found = true
 			assert.Equal(t, 1, item.Quantity)
 		}
